@@ -1,44 +1,31 @@
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Clock {
-    hours: i32,
-    minutes: i32,
+    pub minutes: i32,
+    _secret: (),
 }
 
 impl fmt::Display for Clock {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:02}:{:02}", self.hours, self.minutes)
-    }
-}
-
-impl PartialEq for Clock {
-    fn eq(&self, other: &Self) -> bool {
-        self.hours == other.hours && self.minutes == other.minutes
+        write!(f, "{:02}:{:02}", self.minutes / 60, self.minutes % 60)
     }
 }
 
 impl Clock {
     pub fn new(hours: i32, minutes: i32) -> Self {
-        Self::create(hours, minutes)
+        Self::create(hours * 60 + minutes)
     }
 
     pub fn add_minutes(&self, minutes: i32) -> Self {
-        Self::create(self.hours, self.minutes + minutes)
+        Self::create(self.minutes + minutes)
     }
 
-    fn create(new_hours: i32, new_minutes: i32) -> Self {
-        let mut hours = new_hours;
-        let mut minutes = new_minutes;
-        while minutes < 0 {
-            minutes += 60;
-            hours -= 1;
+    fn create(new_minutes: i32) -> Self {
+        let minutes = new_minutes.rem_euclid(60 * 24);
+        Self {
+            minutes,
+            _secret: (),
         }
-        while hours < 0 {
-            hours += 24
-        }
-        hours = (hours + minutes / 60) % 24;
-        minutes %= 60;
-        Self { hours, minutes }
     }
 }
