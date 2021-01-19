@@ -2,8 +2,9 @@ pub fn annotate(minefield: &[&str]) -> Vec<String> {
     let mut fileds = minefield
         .iter()
         .map(|s| {
-            s.chars()
-                .map(|c| if c == '*' { -1 } else { 0 })
+            s.as_bytes()
+                .iter()
+                .map(|c| if c == &('*' as u8) { -1 } else { 0 })
                 .collect::<Vec<i32>>()
         })
         .collect::<Vec<Vec<i32>>>();
@@ -13,7 +14,7 @@ pub fn annotate(minefield: &[&str]) -> Vec<String> {
     for i in 0..r {
         for j in 0..c {
             if fileds[i][j] == -1 {
-                for (x, y) in surronding_spaces(i, j, r, c) {
+                for (x, y) in surrounding_spaces(i, j, r, c) {
                     if fileds[x][y] != -1 {
                         fileds[x][y] += 1;
                     }
@@ -27,16 +28,16 @@ pub fn annotate(minefield: &[&str]) -> Vec<String> {
         .map(|row| {
             row.into_iter()
                 .map(|r| match r {
-                    -1 => "*".to_string(),
-                    0 => " ".to_string(),
-                    _ => r.to_string(),
+                    -1 => '*',
+                    0 => ' ',
+                    _ => std::char::from_digit(r as u32, 10).unwrap(),
                 })
                 .collect::<String>()
         })
         .collect()
 }
 
-fn surronding_spaces(i: usize, j: usize, r: usize, c: usize) -> Vec<(usize, usize)> {
+fn surrounding_spaces(i: usize, j: usize, r: usize, c: usize) -> Vec<(usize, usize)> {
     vec![
         (-1_i32, -1),
         (-1, 0),
