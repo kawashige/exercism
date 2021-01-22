@@ -5,14 +5,14 @@ use std::{
 };
 
 pub fn frequency(input: &[&str], worker_count: usize) -> HashMap<char, usize> {
-    let counts: Arc<Mutex<HashMap<char, usize>>> = Arc::new(Mutex::new(HashMap::new()));
+    let counts = Arc::new(Mutex::new(HashMap::new()));
     let mut handles = vec![];
 
     let worker_count = std::cmp::min(input.len(), worker_count);
 
     for chunk in input.chunks(input.len() / worker_count) {
         let counts = Arc::clone(&counts);
-        let inputs: Vec<String> = chunk.iter().map(|c| c.to_lowercase().to_string()).collect();
+        let inputs: Vec<String> = chunk.iter().map(|c| c.to_lowercase()).collect();
         let handle = thread::spawn(move || {
             for s in inputs {
                 for c in s.chars() {
