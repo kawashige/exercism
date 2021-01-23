@@ -1,34 +1,29 @@
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-    thread,
-};
+use std::collections::HashMap;
 
 pub fn frequency(input: &[&str], worker_count: usize) -> HashMap<char, usize> {
-    let counts = Arc::new(Mutex::new(HashMap::new()));
-    let mut handles = vec![];
-
+    let mut counts = HashMap::new();
     let worker_count = std::cmp::min(input.len(), worker_count);
 
     for chunk in input.chunks(input.len() / worker_count) {
-        let counts = Arc::clone(&counts);
-        let inputs: Vec<String> = chunk.iter().map(|c| c.to_lowercase()).collect();
-        let handle = thread::spawn(move || {
-            for s in inputs {
-                for c in s.chars() {
-                    if c.is_alphabetic() {
-                        let mut map = counts.lock().unwrap();
-                        *map.entry(c).or_insert(0) += 1;
+        crossbeam::scope(|s| {
+            let handle = s.spawn(|_| {
+                let mut counts = HashMap::new();
+                for s in chunk {
+                    for c in s.to_ascii_lowercase().chars() {
+                        if c.is_alphabetic() {
+                            *counts.entry(c).or_insert(0) += 1;
+                        }
                     }
                 }
+                counts
+            });
+            let thread_counts = handle.join().unwrap();
+            for (k, v) in thread_counts {
+                *counts.entry(k).or_insert(0) += v;
             }
-        });
-        handles.push(handle);
+        })
+        .unwrap();
     }
 
-    for handle in handles {
-        handle.join().unwrap();
-    }
-
-    Arc::try_unwrap(counts).unwrap().into_inner().unwrap()
+    counts
 }
