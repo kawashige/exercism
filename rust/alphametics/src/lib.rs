@@ -1,112 +1,120 @@
 use std::collections::HashMap;
 
 pub fn solve(input: &str) -> Option<HashMap<char, u8>> {
-    let (lhs, rhs) = {
+    let ((lhs, mut not_zero), rhs) = {
         let mut s = input.split(" == ");
         (
-            s.next()
-                .unwrap()
-                .split(" + ")
-                .fold(Vec::new(), |mut acc, x| {
+            s.next().unwrap().split(" + ").fold(
+                (Vec::new(), [false; 26]),
+                |(mut acc, mut not_zero), x| {
                     for (i, c) in x.chars().rev().enumerate() {
+                        if i == 0 && 1 < x.len() {
+                            not_zero[c as usize - 0x41] = true;
+                        }
                         if acc.len() <= i {
                             acc.push(vec![c]);
                         } else {
                             acc[i].push(c);
                         }
                     }
-                    acc
-                }),
+                    (acc, not_zero)
+                },
+            ),
             s.next().unwrap().chars().rev().collect::<Vec<char>>(),
         )
     };
-
-    let mut char_map: HashMap<char, u8> = input
-        .chars()
-        .filter(|c| c.is_ascii_alphabetic())
-        .map(|c| (c, 10))
-        .collect();
-    let chars = lhs
-        .iter()
-        .chain(std::iter::once(&rhs))
-        .fold(Vec::new(), |mut acc, v| {
-            for c in v {
-                if !acc.contains(c) {
-                    acc.push(*c);
-                }
-            }
-            acc
-        });
-    let mut num_used = [false; 10];
-
-    if lhs.len() < rhs.len() {
-        *char_map.get_mut(&rhs[rhs.len() - 1]).unwrap() = 1;
-        num_used[1] = true;
+    if 0 < rhs.len() {
+        not_zero[rhs[rhs.len() - 1] as usize - 0x41] = true;
     }
 
-    if dfs(&mut char_map, &mut num_used, &chars, &lhs, &rhs) {
-        Some(char_map)
+    let mut multiply = [0_i32; 26];
+    for (i, v) in lhs.iter().enumerate() {
+        for c in v {
+            multiply[*c as usize - 0x41] += 10_i32.pow(i as u32);
+        }
+    }
+    for (i, c) in rhs.iter().enumerate() {
+        multiply[*c as usize - 0x41] -= 10_i32.pow(i as u32);
+    }
+
+    let mut num_used = [false; 10];
+    let mut chars = [10; 26];
+    let mut char_indices = multiply
+        .iter()
+        .enumerate()
+        .filter(|(_, v)| *v != &0)
+        .collect::<Vec<(usize, &i32)>>();
+    char_indices.sort_by_key(|(_, v)| -**v);
+    let indicies = char_indices
+        .into_iter()
+        .map(|(i, _)| i)
+        .collect::<Vec<usize>>();
+
+    if dfs(
+        &mut chars,
+        &mut num_used,
+        &indicies,
+        &not_zero,
+        &multiply,
+        &lhs,
+        &rhs,
+        0,
+    ) {
+        Some(
+            chars
+                .iter()
+                .enumerate()
+                .filter(|(_, n)| *n != &10)
+                .map(|(i, n)| ((i as u8 + 0x41) as char, *n as u8))
+                .collect(),
+        )
     } else {
         None
     }
 }
 
 fn dfs(
-    char_map: &mut HashMap<char, u8>,
+    chars: &mut [usize; 26],
     num_used: &mut [bool; 10],
-    chars: &Vec<char>,
+    indices: &Vec<usize>,
+    not_zero: &[bool; 26],
+    multiply: &[i32; 26],
     lhs: &Vec<Vec<char>>,
     rhs: &Vec<char>,
+    sum: i64,
 ) -> bool {
-    match check(char_map, lhs, rhs) {
-        0 => return true,
-        1 => return false,
-        _ => {}
+    if sum < 0 {
+        return false;
+    }
+    if (0..26).all(|i| multiply[i] == 0 || chars[i] != 10) {
+        return sum == 0;
     }
 
-    for k in chars {
-        if char_map[&k] != 10 {
+    for i in indices {
+        if chars[*i] != 10 || multiply[*i] == 0 {
             continue;
         }
         for j in 0..10 {
-            if num_used[j] {
+            if num_used[j] || (j == 0 && not_zero[*i]) {
                 continue;
             }
             num_used[j] = true;
-            *char_map.get_mut(&k).unwrap() = j as u8;
-            if dfs(char_map, num_used, chars, lhs, rhs) {
+            chars[*i] = j;
+            if dfs(
+                chars,
+                num_used,
+                indices,
+                not_zero,
+                multiply,
+                lhs,
+                rhs,
+                sum + multiply[*i] as i64 * j as i64,
+            ) {
                 return true;
             }
             num_used[j] = false;
-            *char_map.get_mut(&k).unwrap() = 10;
+            chars[*i] = 10;
         }
     }
     false
-}
-
-fn check(char_map: &HashMap<char, u8>, lhs: &Vec<Vec<char>>, rhs: &Vec<char>) -> usize {
-    if lhs[lhs.len() - 1]
-        .iter()
-        .chain(std::iter::once(&rhs[rhs.len() - 1]))
-        .any(|c| char_map[&c] == 0)
-    {
-        return 1;
-    }
-
-    let mut c = 0;
-    for i in 0..rhs.len() {
-        if (i < lhs.len() && lhs[i].iter().any(|c| char_map[c] == 10)) || char_map[&rhs[i]] == 10 {
-            return 2;
-        }
-        let sum: u64 = if lhs.len() - 1 < i {
-            0
-        } else {
-            lhs[i].iter().map(|c| char_map[c] as u64).sum()
-        } + c;
-        if sum % 10 != char_map[&rhs[i]] as u64 {
-            return 1;
-        }
-        c = sum / 10;
-    }
-    0
 }
