@@ -38,11 +38,11 @@ impl Forth {
         let mut word_stack = Vec::new();
 
         for operation in input.to_ascii_lowercase().split_ascii_whitespace() {
-            let mut ops = self
+            let ops = self
                 .words
                 .get(operation)
-                .unwrap_or(&vec![operation.to_string()])
-                .clone();
+                .map(|op| op.clone())
+                .unwrap_or_else(|| vec![operation.to_string()]);
             match &state {
                 State::NewWordStart if operation.chars().all(|c| c.is_numeric()) => {
                     return Err(Error::InvalidWord);
@@ -56,7 +56,7 @@ impl Forth {
                     state = State::Normal;
                 }
                 State::NewWordProcessing(_) => {
-                    word_stack.append(&mut ops);
+                    word_stack.extend(ops);
                 }
                 State::Normal => {
                     for op in ops {
